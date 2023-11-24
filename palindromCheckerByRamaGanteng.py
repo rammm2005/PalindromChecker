@@ -1,6 +1,6 @@
 def is_palindrome(word):
     word = word.lower()
-    word = word.replace(" ", "")
+    word = word.replace("", "")
     reversedWord = word[::-1]
 
     if word == reversedWord:
