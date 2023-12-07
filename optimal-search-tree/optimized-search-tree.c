@@ -17,29 +17,48 @@ Node* createNode(char word[], char translation[]) {
     return newNode;
 }
 
-Node* buildOptimalBST(char words[][50], char translations[][50], int start, int end) {
-    if (start > end) {
-        return NULL;
+Node* insert(Node* root, char word[], char translation[]) {
+    if (root == NULL) {
+        return createNode(word, translation);
     }
 
-    int mid = (start + end) / 2;
-    Node* root = createNode(translations[mid], words[mid]);
+    int compareResult = strcmp(word, root->word);
 
-    root->left = buildOptimalBST(words, translations, start, mid - 1);
-    root->right = buildOptimalBST(words, translations, mid + 1, end);
+    if (compareResult < 0) {
+        root->left = insert(root->left, word, translation);
+    } else if (compareResult > 0) {
+        root->right = insert(root->right, word, translation);
+    }
 
     return root;
 }
 
-char* searchTranslation(Node* root, char word[]) {
-    if (root == NULL || strcmp(root->word, word) == 0) {
-        return (root == NULL) ? "Kata tidak ditemukan" : root->translation;
+char* searchTranslation(Node* root, char word[], int choice) {
+    if (root == NULL) {
+        char* notFoundMessage = (char*)malloc(strlen("Kata tidak ditemukan") + 1);
+        strcpy(notFoundMessage, "Kata tidak ditemukan");
+        return notFoundMessage;
     }
 
-    if (strcmp(word, root->word) < 0) {
-        return searchTranslation(root->left, word);
+    int compareResult;
+    if (choice == 1) {
+        compareResult = strcmp(word, root->word);
+    } else if (choice == 2) {
+        compareResult = strcmp(word, root->translation);
     } else {
-        return searchTranslation(root->right, word);
+        char* invalidChoiceMessage = (char*)malloc(strlen("Pilihan tidak valid.") + 1);
+        strcpy(invalidChoiceMessage, "Pilihan tidak valid.");
+        return invalidChoiceMessage;
+    }
+
+    if (compareResult == 0) {
+        char* result = (char*)malloc(strlen((choice == 1) ? root->translation : root->word) + 1);
+        strcpy(result, (choice == 1) ? root->translation : root->word);
+        return result;
+    } else if (compareResult < 0) {
+        return searchTranslation(root->left, word, choice);
+    } else {
+        return searchTranslation(root->right, word, choice);
     }
 }
 
@@ -52,32 +71,16 @@ void printInorder(Node* root) {
 }
 
 int main() {
-    char words[][50] = {"apple", "banana", "cherry", "date", "elderberry", "fig", "grape"};
-    char translations[][50] = {"apel", "pisang", "ceri", "kurma", "jeruk", "buah tin", "anggur"};
+    Node* root = NULL;
 
-    int n = sizeof(words) / sizeof(words[0]);
-
-    // Sorting words
-    for (int i = 0; i < n - 1; i++) {
-        for (int j = i + 1; j < n; j++) {
-            if (strcmp(words[i], words[j]) > 0) {
-                char tempWord[50];
-                char tempTranslation[50];
-
-                strcpy(tempWord, words[i]);
-                strcpy(tempTranslation, translations[i]);
-
-                strcpy(words[i], words[j]);
-                strcpy(translations[i], translations[j]);
-
-                strcpy(words[j], tempWord);
-                strcpy(translations[j], tempTranslation);
-            }
-        }
-    }
-
-    // Building optimal BST
-    Node* root = buildOptimalBST(words, translations, 0, n - 1);
+    // Insert initial words and translations
+    root = insert(root, "apple", "apel");
+    root = insert(root, "banana", "pisang");
+    root = insert(root, "cherry", "ceri");
+    root = insert(root, "date", "kurma");
+    root = insert(root, "elderberry", "jeruk");
+    root = insert(root, "fig", "buah tin");
+    root = insert(root, "grape", "anggur");
 
     // Displaying the dictionary
     printf("Kamus:\n");
@@ -85,7 +88,7 @@ int main() {
 
     // Translation choice
     int choice;
-    printf("\nPilih jenis terjemahan:\n");
+    printf("\n\nPilih jenis terjemahan:\n");
     printf("1. Bahasa Indonesia ke Bahasa Inggris\n");
     printf("2. Bahasa Inggris ke Bahasa Indonesia\n");
     scanf("%d", &choice);
@@ -93,21 +96,25 @@ int main() {
     // Translation
     char searchWord[50];
     printf("\nMasukkan kata yang ingin dicari: ");
-    scanf("%s", searchWord);
+    getchar();  // Consume the newline character left in the buffer
+    fgets(searchWord, sizeof(searchWord), stdin);
+    searchWord[strcspn(searchWord, "\n")] = '\0';  // Remove the newline character
 
-    char* translation;
-    if (choice == 1) {
-        translation = searchTranslation(root, searchWord);
-        printf("Terjemahan: %s\n", translation);
-    } else if (choice == 2) {
-        // Invert the tree to translate from English to Indonesian
-        Node* invertedRoot = NULL;
-        invertedRoot = buildOptimalBST(translations, words, 0, n - 1);
-        translation = searchTranslation(invertedRoot, searchWord);
-        printf("Terjemahan: %s\n", translation);
-    } else {
-        printf("Pilihan tidak valid.\n");
-    }
+    char* translation = searchTranslation(root, searchWord, choice);
+    printf("Terjemahan: %s\n", translation);
+
+    // Inserting new word and translation
+    char newWord[50], newTranslation[50];
+    printf("\nMasukkan kata baru: ");
+    scanf("%s", newWord);
+    printf("Masukkan terjemahan kata baru: ");
+    scanf("%s", newTranslation);
+
+    root = insert(root, newWord, newTranslation);
+
+    // Displaying the updated dictionary
+    printf("\n\nKamus Baru:\n");
+    printInorder(root);
 
     return 0;
 }
