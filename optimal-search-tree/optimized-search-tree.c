@@ -2,119 +2,194 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct Node {
-    char word[50];
-    char translation[50];
+struct Node {
+    char key[50];
+    char value[50];
+    int height;
     struct Node* left;
     struct Node* right;
-} Node;
+};
 
-Node* createNode(char word[], char translation[]) {
-    Node* newNode = (Node*)malloc(sizeof(Node));
-    strcpy(newNode->word, word);
-    strcpy(newNode->translation, translation);
-    newNode->left = newNode->right = NULL;
-    return newNode;
+struct Node* newNode(char key[], char value[]) {
+    struct Node* temp = (struct Node*)malloc(sizeof(struct Node));
+    strcpy(temp->key, key);
+    strcpy(temp->value, value);
+    temp->height = 1;
+    temp->left = temp->right = NULL;
+    return temp;
 }
 
-Node* insert(Node* root, char word[], char translation[]) {
+int max(int a, int b) {
+    return (a > b) ? a : b;
+}
+
+int height(struct Node* root) {
     if (root == NULL) {
-        return createNode(word, translation);
+        return 0;
+    }
+    return root->height;
+}
+
+int getBalance(struct Node* root) {
+    if (root == NULL) {
+        return 0;
+    }
+    return height(root->left) - height(root->right);
+}
+
+struct Node* rightRotate(struct Node* y) {
+    struct Node* x = y->left;
+    struct Node* T2 = x->right;
+
+    x->right = y;
+    y->left = T2;
+
+    y->height = max(height(y->left), height(y->right)) + 1;
+    x->height = max(height(x->left), height(x->right)) + 1;
+
+    return x;
+}
+
+struct Node* leftRotate(struct Node* x) {
+    struct Node* y = x->right;
+    struct Node* T2 = y->left;
+
+    y->left = x;
+    x->right = T2;
+
+    x->height = max(height(x->left), height(x->right)) + 1;
+    y->height = max(height(y->left), height(y->right)) + 1;
+
+    return y;
+}
+
+struct Node* insertAVL(struct Node* root, char key[], char value[]) {
+    if (root == NULL) {
+        return newNode(key, value);
     }
 
-    int compareResult = strcmp(word, root->word);
+    int cmp = strcmp(key, root->key);
+    if (cmp < 0) {
+        root->left = insertAVL(root->left, key, value);
+    } else if (cmp > 0) {
+        root->right = insertAVL(root->right, key, value);
+    } else {
+        return root;
+    }
 
-    if (compareResult < 0) {
-        root->left = insert(root->left, word, translation);
-    } else if (compareResult > 0) {
-        root->right = insert(root->right, word, translation);
+    root->height = 1 + max(height(root->left), height(root->right));
+
+    int balance = getBalance(root);
+
+    if (balance > 1 && strcmp(key, root->left->key) < 0) {
+        return rightRotate(root);
+    }
+    if (balance < -1 && strcmp(key, root->right->key) > 0) {
+        return leftRotate(root);
+    }
+    if (balance > 1 && strcmp(key, root->left->key) > 0) {
+        root->left = leftRotate(root->left);
+        return rightRotate(root);
+    }
+    if (balance < -1 && strcmp(key, root->right->key) < 0) {
+        root->right = rightRotate(root->right);
+        return leftRotate(root);
     }
 
     return root;
 }
 
-char* searchTranslation(Node* root, char word[], int choice) {
+struct Node* optimizeBST(struct Node* root, int* cost) {
     if (root == NULL) {
-        char* notFoundMessage = (char*)malloc(strlen("Kata tidak ditemukan") + 1);
-        strcpy(notFoundMessage, "Kata tidak ditemukan");
-        return notFoundMessage;
+        return NULL;
     }
 
-    int compareResult;
-    if (choice == 1) {
-        compareResult = strcmp(word, root->word);
-    } else if (choice == 2) {
-        compareResult = strcmp(word, root->translation);
-    } else {
-        char* invalidChoiceMessage = (char*)malloc(strlen("Pilihan tidak valid.") + 1);
-        strcpy(invalidChoiceMessage, "Pilihan tidak valid.");
-        return invalidChoiceMessage;
+    root->left = optimizeBST(root->left, cost);
+    root->right = optimizeBST(root->right, cost);
+
+    int currentCost = (root->left != NULL ? root->left->height : 0) +
+                      (root->right != NULL ? root->right->height : 0);
+
+    if (currentCost < *cost) {
+        *cost = currentCost;
+        return root;
     }
 
-    if (compareResult == 0) {
-        char* result = (char*)malloc(strlen((choice == 1) ? root->translation : root->word) + 1);
-        strcpy(result, (choice == 1) ? root->translation : root->word);
-        return result;
-    } else if (compareResult < 0) {
-        return searchTranslation(root->left, word, choice);
-    } else {
-        return searchTranslation(root->right, word, choice);
+    struct Node* leftOptimal = (root->left != NULL) ? root->left->right : NULL;
+    struct Node* rightOptimal = (root->right != NULL) ? root->right->left : NULL;
+
+    if (leftOptimal != NULL) {
+        int leftCost = leftOptimal->height + (root->right != NULL ? root->right->height : 0);
+        if (leftCost < *cost) {
+            *cost = leftCost;
+            return leftOptimal;
+        }
     }
+
+    if (rightOptimal != NULL) {
+        int rightCost = (root->left != NULL ? root->left->height : 0) + rightOptimal->height;
+        if (rightCost < *cost) {
+            *cost = rightCost;
+            return rightOptimal;
+        }
+    }
+
+    return root;
 }
 
-void printInorder(Node* root) {
+char* search(struct Node* root, char key[]) {
+    while (root != NULL) {
+        int cmp = strcmp(key, root->key);
+        if (cmp == 0) {
+            return root->value;
+        } else if (cmp < 0) {
+            root = root->left;
+        } else {
+            root = root->right;
+        }
+    }
+
+    return "Not Found";
+}
+
+void display(struct Node* root) {
     if (root != NULL) {
-        printInorder(root->left);
-        printf("%s: %s\n", root->word, root->translation);
-        printInorder(root->right);
+        display(root->left);
+        printf("%s: %s\n", root->key, root->value);
+        display(root->right);
     }
 }
 
 int main() {
-    Node* root = NULL;
+    struct Node* root = NULL;
+    int n, i;
+    char key[50], value[50];
 
-    // Insert initial words and translations
-    root = insert(root, "apple", "apel");
-    root = insert(root, "banana", "pisang");
-    root = insert(root, "cherry", "ceri");
-    root = insert(root, "date", "kurma");
-    root = insert(root, "elderberry", "jeruk");
-    root = insert(root, "fig", "buah tin");
-    root = insert(root, "grape", "anggur");
+    printf("Enter the number of entries in the dictionary: ");
+    scanf("%d", &n);
 
-    // Displaying the dictionary
-    printf("Kamus:\n");
-    printInorder(root);
+    printf("Enter the dictionary entries (English word : Indonesian word):\n");
+    for (i = 0; i < n; i++) {
+        scanf("%s %s", key, value);
+        root = insertAVL(root, key, value);
+    }
 
-    // Translation choice
-    int choice;
-    printf("\n\nPilih jenis terjemahan:\n");
-    printf("1. Bahasa Indonesia ke Bahasa Inggris\n");
-    printf("2. Bahasa Inggris ke Bahasa Indonesia\n");
-    scanf("%d", &choice);
+    int cost = 999999;
+    root = optimizeBST(root, &cost);
 
-    // Translation
-    char searchWord[50];
-    printf("\nMasukkan kata yang ingin dicari: ");
-    getchar();  // Consume the newline character left in the buffer
-    fgets(searchWord, sizeof(searchWord), stdin);
-    searchWord[strcspn(searchWord, "\n")] = '\0';  // Remove the newline character
+    printf("\nOptimized AVL Tree:\n");
+    display(root);
 
-    char* translation = searchTranslation(root, searchWord, choice);
-    printf("Terjemahan: %s\n", translation);
+    printf("\nEnter the English word to search (type 'exit' to stop): ");
+    while (1) {
+        scanf("%s", key);
+        if (strcmp(key, "exit") == 0) {
+            break;
+        }
 
-    // Inserting new word and translation
-    char newWord[50], newTranslation[50];
-    printf("\nMasukkan kata baru: ");
-    scanf("%s", newWord);
-    printf("Masukkan terjemahan kata baru: ");
-    scanf("%s", newTranslation);
-
-    root = insert(root, newWord, newTranslation);
-
-    // Displaying the updated dictionary
-    printf("\n\nKamus Baru:\n");
-    printInorder(root);
+        char* result = search(root, key);
+        printf("Translation: %s\n", result);
+    }
 
     return 0;
 }
